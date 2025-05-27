@@ -14,6 +14,9 @@ def criar_tabela():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             codigo TEXT,
             nome TEXT,
+            marca TEXT,
+            fabricante TEXT,
+            categoria TEXT,
             valor_unitario REAL,
             quantidade INTEGER,
             data TEXT
@@ -22,12 +25,12 @@ def criar_tabela():
     conn.commit()
     conn.close()
 
-def inserir_produto(codigo, nome, valor, quantidade, data):
+def inserir_produto(codigo, nome, marca, fabricante, categoria, valor, quantidade, data):
     conn = conectar()
     conn.execute("""
-        INSERT INTO produtos (codigo, nome, valor_unitario, quantidade, data)
-        VALUES (?, ?, ?, ?, ?)
-    """, (codigo, nome, valor, quantidade, data))
+        INSERT INTO produtos (codigo, nome, marca, fabricante, categoria, valor_unitario, quantidade, data)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (codigo, nome, marca, fabricante, categoria, valor, quantidade, data))
     conn.commit()
     conn.close()
     hoje = datetime.now().strftime("%Y-%m-%d")
@@ -51,8 +54,6 @@ def listar_por_mes(mes):
     conn = conectar()
     df = pd.read_sql_query("SELECT * FROM produtos WHERE data = ?", conn, params=(mes,))
     conn.close()
-    if not df.empty:
-        df["categoria"] = df["nome"].apply(classificar_categoria)
     return df
 
 def limpar_mes(mes):
@@ -80,12 +81,12 @@ def excluir_produto(id_produto):
     conn.commit()
     conn.close()
 
-def editar_produto(id_produto, novo_nome, novo_valor, nova_qtd):
+def editar_produto(id_produto, nome, marca, fabricante, categoria, valor, quantidade):
     conn = conectar()
     conn.execute("""
         UPDATE produtos
-        SET nome = ?, valor_unitario = ?, quantidade = ?
+        SET nome = ?, marca = ?, fabricante = ?, categoria = ?, valor_unitario = ?, quantidade = ?
         WHERE id = ?
-    """, (novo_nome, novo_valor, nova_qtd, id_produto))
+    """, (nome, marca, fabricante, categoria, valor, quantidade, id_produto))
     conn.commit()
     conn.close()
