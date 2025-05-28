@@ -2,4 +2,5 @@ streamlit
 pandas
 altair
 xlsxwriter
-st-aggrid
+streamlit-aggrid
+
