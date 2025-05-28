@@ -1,31 +1,39 @@
+import streamlit.components.v1 as components
 import streamlit as st
 
 def escanear_codigo_web():
-    st.markdown("""
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <div id="reader" width="300px"></div>
-    <script>
-        function iniciarScanner() {
-            const scanner = new Html5Qrcode("reader");
-            scanner.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: 250 },
-                (decodedText, decodedResult) => {
-                    const streamlitEvent = new Event("streamlit:barcode");
-                    streamlitEvent.detail = decodedText;
-                    document.dispatchEvent(streamlitEvent);
-                    scanner.stop();
-                },
-                errorMessage => {
-                    // console.log("Erro leitura:", errorMessage);
-                }
-            );
+    # Contêiner para o valor lido
+    codigo_lido = st.empty()
+
+    # Código HTML + JS para o leitor
+    components.html(
+        """
+        <div id="reader" width="300px"></div>
+        <p id="result"></p>
+        <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+        <script>
+        const html5QrCode = new Html5Qrcode("reader");
+
+        function onScanSuccess(decodedText, decodedResult) {
+            document.getElementById("result").innerText = decodedText;
+            const streamlitEvent = new Event("input", { bubbles: true });
+            const streamlitInput = window.parent.document.querySelector('iframe').contentWindow.document.querySelectorAll("input[type='text']")[0];
+            streamlitInput.value = decodedText;
+            streamlitInput.dispatchEvent(streamlitEvent);
+            html5QrCode.stop();
         }
 
-        document.addEventListener("DOMContentLoaded", iniciarScanner);
-    </script>
-    """, unsafe_allow_html=True)
-
-    # Capturar o valor do código
-    barcode = st.experimental_get_query_params().get("barcode", [""])[0]
-    return barcode if barcode else None
+        html5QrCode.start(
+            { facingMode: "environment" },  // câmera traseira
+            {
+                fps: 10,
+                qrbox: 250
+            },
+            onScanSuccess
+        ).catch(err => {
+            document.getElementById("result").innerText = "Erro ao acessar a câmera: " + err;
+        });
+        </script>
+        """,
+        height=400
+    )
