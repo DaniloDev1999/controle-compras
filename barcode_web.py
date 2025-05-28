@@ -1,21 +1,24 @@
 import streamlit.components.v1 as components
-import streamlit as st
 
 def escanear_codigo_web():
-    st.markdown("### 📸 Posicione o código de barras na frente da câmera")
-
     components.html(
         """
-        <div id="reader" width="100%"></div>
-        <p id="result" style="font-weight: bold;"></p>
+        <div id="reader" style="width: 100%;"></div>
+        <p id="result" style="font-weight:bold; color: green;"></p>
+
         <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
         <script>
             const html5QrCode = new Html5Qrcode("reader");
 
             function onScanSuccess(decodedText, decodedResult) {
-                const streamlitInput = window.parent.document.querySelector('iframe').contentWindow.document.querySelectorAll("input[type='text']")[0];
-                streamlitInput.value = decodedText;
-                streamlitInput.dispatchEvent(new Event("input", { bubbles: true }));
+                // mostra no HTML
+                document.getElementById("result").innerText = "📦 Código escaneado: " + decodedText;
+
+                // atualiza a URL com o código escaneado
+                const url = new URL(window.parent.location);
+                url.searchParams.set("barcode", decodedText);
+                window.parent.location.href = url.toString();
+
                 html5QrCode.stop();
             }
 
@@ -27,8 +30,8 @@ def escanear_codigo_web():
                             fps: 10,
                             qrbox: 250,
                             formatsToSupport: [
-                                Html5QrcodeSupportedFormats.CODE_128,
                                 Html5QrcodeSupportedFormats.EAN_13,
+                                Html5QrcodeSupportedFormats.CODE_128,
                                 Html5QrcodeSupportedFormats.EAN_8,
                                 Html5QrcodeSupportedFormats.UPC_A,
                                 Html5QrcodeSupportedFormats.UPC_E
@@ -38,9 +41,13 @@ def escanear_codigo_web():
                     ).catch(err => {
                         document.getElementById("result").innerText = "Erro ao iniciar a câmera: " + err;
                     });
+                } else {
+                    document.getElementById("result").innerText = "Nenhuma câmera encontrada.";
                 }
+            }).catch(err => {
+                document.getElementById("result").innerText = "Erro ao acessar a câmera: " + err;
             });
         </script>
         """,
-        height=400
+        height=420
     )
