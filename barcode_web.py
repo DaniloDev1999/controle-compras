@@ -4,7 +4,7 @@ import streamlit as st
 def escanear_codigo_web():
     components.html(
         """
-        <video id="video" width="400" height="300" autoplay></video>
+        <video id="video" width="500" height="400" autoplay style="border: 2px solid #ccc; border-radius: 8px;"></video>
         <p id="output">🔍 Aguardando leitura do código...</p>
 
         <script>
@@ -20,15 +20,15 @@ def escanear_codigo_web():
             const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
 
             try {
-                // AQUI AJUSTAMOS A RESOLUÇÃO
-                const stream = await navigator.mediaDevices.getUserMedia({
+                const constraints = {
                     video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: { exact: "environment" },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     }
-                });
+                };
 
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
 
                 const scanLoop = () => {
@@ -49,12 +49,12 @@ def escanear_codigo_web():
 
                 scanLoop();
             } catch (err) {
-                output.innerText = "Erro ao acessar câmera: " + err;
+                output.innerText = "❗ Erro ao acessar a câmera ou resolução não suportada: " + err;
             }
         }
 
         startScanner();
         </script>
         """,
-        height=350
+        height=500
     )
