@@ -29,7 +29,7 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
 with st.form("formulario"):
     codigo_input = st.text_input("📦 Código de barras", value=st.session_state["codigo"])
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     with col1:
         buscar = st.form_submit_button("🔍 Buscar Produto")
     with col2:
