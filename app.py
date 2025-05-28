@@ -37,8 +37,11 @@ with st.form("formulario"):
     with col3:
         cadastrar = st.form_submit_button("🌍 Cadastrar na Open Food")
     with col4:
-    	abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
+        abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
+    # Ler código pela câmera
+    if abrir_camera:
+        escanear_codigo_web()
 
     # Buscar produto na API externa
     if buscar and codigo_input:
@@ -56,13 +59,6 @@ with st.form("formulario"):
             st.success("Produto preenchido com sucesso!")
         else:
             st.warning("Produto não encontrado na base externa.")
-    # Ler código pela câmera
-    if abrir_camera:
-        st.info("📸 Aguardando leitura do código...")
-        barcode = escanear_codigo_web()
-        if barcode:
-            st.session_state["codigo"] = barcode
-            st.rerun()
     # Campos de entrada manual (podem ser preenchidos ou editados)
     nome = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
     marca = st.text_input("🏷️ Marca", value=st.session_state["marca"])
