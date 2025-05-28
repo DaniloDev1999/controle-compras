@@ -4,7 +4,7 @@ import streamlit as st
 def escanear_codigo_web():
     components.html(
         """
-        <video id="video" width="300" height="200" autoplay></video>
+        <video id="video" width="400" height="300" autoplay></video>
         <p id="output">🔍 Aguardando leitura do código...</p>
 
         <script>
@@ -20,7 +20,15 @@ def escanear_codigo_web():
             const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // AQUI AJUSTAMOS A RESOLUÇÃO
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
                 video.srcObject = stream;
 
                 const scanLoop = () => {
@@ -29,7 +37,6 @@ def escanear_codigo_web():
                             if (codes.length > 0) {
                                 const code = codes[0].rawValue;
                                 output.innerText = "✅ Código detectado: " + code;
-                                // Redireciona com o código na URL
                                 window.location.search = "?barcode=" + code;
                             } else {
                                 requestAnimationFrame(scanLoop);
@@ -49,5 +56,5 @@ def escanear_codigo_web():
         startScanner();
         </script>
         """,
-        height=300
+        height=350
     )
