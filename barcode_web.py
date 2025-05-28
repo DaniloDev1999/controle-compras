@@ -1,25 +1,31 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 def escanear_codigo_web():
-    components.html("""
-    <div id="reader" style="width: 100%"></div>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    st.markdown("""
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <div id="reader" width="300px"></div>
     <script>
-        const reader = new Html5Qrcode("reader");
-        reader.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: 250 },
-            (decodedText, decodedResult) => {
-                const streamlitInput = window.parent.document.querySelector('input[id^="barcode_web_input"]');
-                if (streamlitInput) {
-                    streamlitInput.value = decodedText;
-                    streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    reader.stop();
-                    document.getElementById("reader").innerHTML = "<b>✅ Código lido: </b>" + decodedText;
+        function iniciarScanner() {
+            const scanner = new Html5Qrcode("reader");
+            scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText, decodedResult) => {
+                    const streamlitEvent = new Event("streamlit:barcode");
+                    streamlitEvent.detail = decodedText;
+                    document.dispatchEvent(streamlitEvent);
+                    scanner.stop();
+                },
+                errorMessage => {
+                    // console.log("Erro leitura:", errorMessage);
                 }
-            },
-            errorMessage => {}
-        );
+            );
+        }
+
+        document.addEventListener("DOMContentLoaded", iniciarScanner);
     </script>
-    """, height=400)
+    """, unsafe_allow_html=True)
+
+    # Capturar o valor do código
+    barcode = st.experimental_get_query_params().get("barcode", [""])[0]
+    return barcode if barcode else None
