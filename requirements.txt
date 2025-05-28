@@ -3,7 +3,3 @@ pandas
 altair
 streamlit-aggrid
 requests
-XlsxWriter
-streamlit-webrtc
-opencv-python
-pyzbar

@@ -1,5 +1,4 @@
 import pandas as pd
-import io
 
 def calcular_totais(df):
     if df.empty:
@@ -10,16 +9,7 @@ def calcular_totais(df):
     return total, qtd_total
 
 def exportar_csv(df):
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    return output.getvalue().encode("utf-8")
-
-def exportar_excel(df):
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False)
-    buffer.seek(0)
-    return buffer.getvalue()
+    df.to_csv("registro_compras.csv", index=False)
 
 def classificar_categoria(nome_produto):
     nome = nome_produto.lower()

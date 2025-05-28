@@ -5,12 +5,11 @@ from db import (
     criar_tabela, inserir_produto, listar_produtos,
     listar_meses, listar_por_mes, limpar_mes, resumo_mensal, excluir_produto
 )
-from utils import calcular_totais, exportar_csv,exportar_excel
+from utils import calcular_totais, exportar_csv
 from barcode_api import buscar_produto_por_codigo
 from barcode_upload import cadastrar_produto_off
 from datetime import date
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
-from barcode_scanner import escanear_codigo_barras
 
 st.set_page_config(page_title="Controle de Compras", layout="centered")
 st.title("🛒 Controle de Compras por Código de Barras")
@@ -29,16 +28,13 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
 with st.form("formulario"):
     codigo_input = st.text_input("📦 Código de barras", value=st.session_state["codigo"])
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         buscar = st.form_submit_button("🔍 Buscar Produto")
     with col2:
         adicionar = st.form_submit_button("✅ Adicionar Produto")
     with col3:
         cadastrar = st.form_submit_button("🌍 Cadastrar na Open Food")
-    with col4:
-    	abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
-
 
     # Buscar produto na API externa
     if buscar and codigo_input:
@@ -56,13 +52,6 @@ with st.form("formulario"):
             st.success("Produto preenchido com sucesso!")
         else:
             st.warning("Produto não encontrado na base externa.")
-    # Ler código pela câmera
-    if abrir_camera:
-        st.info("📸 Aguardando leitura do código...")
-        barcode = escanear_codigo_barras()
-        if barcode:
-            st.session_state["codigo"] = barcode
-            st.rerun()
 
     # Campos de entrada manual (podem ser preenchidos ou editados)
     nome = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
@@ -188,17 +177,12 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
     if valor_restante < 0:
         st.error("🚨 Você ultrapassou seu crédito disponível!")
 
-    # 👇 Aqui está fora do if, sempre visível
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        csv_bytes = exportar_csv(dados)
-        st.download_button("📤 Exportar CSV", data=csv_bytes, file_name="dados_compras.csv", mime="text/csv")
-
+        if st.button("📤 Exportar CSV"):
+            exportar_csv(dados)
+            st.success("Arquivo exportado com sucesso!")
     with col2:
-        excel_bytes = exportar_excel(dados)
-        st.download_button("📥 Exportar Excel", data=excel_bytes, file_name="dados_compras.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    with col3:
         if st.button("🗑️ Limpar dados deste mês"):
             limpar_mes(mes_escolhido)
             st.warning("Registros apagados.")
