@@ -1,5 +1,5 @@
 streamlit
 pandas
 altair
-streamlit-aggrid
-requests
+xlsxwriter
+st-aggrid
