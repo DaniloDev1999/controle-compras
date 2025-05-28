@@ -14,11 +14,14 @@ from barcode_web import escanear_codigo_web
 
 st.set_page_config(page_title="Controle de Compras", layout="centered")
 st.title("🛒 Controle de Compras por Código de Barras")
-# Corrige leitura de parâmetros via URL
+
+# Captura o código de barras da URL e define no session_state
 query_params = st.query_params
 if "barcode" in query_params:
-    st.session_state["codigo"] = query_params["barcode"]
+    st.session_state["codigo"] = query_params["barcode"][0]  # Pega o primeiro valor da lista
+
 criar_tabela()
+
 
 credito_inicial = st.number_input("💰 Crédito disponível", min_value=0.0, value=200.0)
 

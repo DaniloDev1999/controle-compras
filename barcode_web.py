@@ -1,53 +1,53 @@
 import streamlit.components.v1 as components
+import streamlit as st
 
 def escanear_codigo_web():
     components.html(
         """
-        <div id="reader" style="width: 100%;"></div>
-        <p id="result" style="font-weight:bold; color: green;"></p>
+        <video id="video" width="300" height="200" autoplay></video>
+        <p id="output">🔍 Aguardando leitura do código...</p>
 
-        <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
         <script>
-            const html5QrCode = new Html5Qrcode("reader");
+        async function startScanner() {
+            const video = document.getElementById('video');
+            const output = document.getElementById('output');
 
-            function onScanSuccess(decodedText, decodedResult) {
-                // mostra no HTML
-                document.getElementById("result").innerText = "📦 Código escaneado: " + decodedText;
-
-                // atualiza a URL com o código escaneado
-                const url = new URL(window.parent.location);
-                url.searchParams.set("barcode", decodedText);
-                window.parent.location.href = url.toString();
-
-                html5QrCode.stop();
+            if (!('BarcodeDetector' in window)) {
+                output.innerText = "❌ BarcodeDetector não suportado nesse navegador.";
+                return;
             }
 
-            Html5Qrcode.getCameras().then(devices => {
-                if (devices && devices.length) {
-                    html5QrCode.start(
-                        { facingMode: "environment" },
-                        {
-                            fps: 10,
-                            qrbox: 250,
-                            formatsToSupport: [
-                                Html5QrcodeSupportedFormats.EAN_13,
-                                Html5QrcodeSupportedFormats.CODE_128,
-                                Html5QrcodeSupportedFormats.EAN_8,
-                                Html5QrcodeSupportedFormats.UPC_A,
-                                Html5QrcodeSupportedFormats.UPC_E
-                            ]
-                        },
-                        onScanSuccess
-                    ).catch(err => {
-                        document.getElementById("result").innerText = "Erro ao iniciar a câmera: " + err;
-                    });
-                } else {
-                    document.getElementById("result").innerText = "Nenhuma câmera encontrada.";
-                }
-            }).catch(err => {
-                document.getElementById("result").innerText = "Erro ao acessar a câmera: " + err;
-            });
+            const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+
+                const scanLoop = () => {
+                    detector.detect(video)
+                        .then(codes => {
+                            if (codes.length > 0) {
+                                const code = codes[0].rawValue;
+                                output.innerText = "✅ Código detectado: " + code;
+                                // Redireciona com o código na URL
+                                window.location.search = "?barcode=" + code;
+                            } else {
+                                requestAnimationFrame(scanLoop);
+                            }
+                        })
+                        .catch(err => {
+                            output.innerText = "Erro na detecção: " + err;
+                        });
+                };
+
+                scanLoop();
+            } catch (err) {
+                output.innerText = "Erro ao acessar câmera: " + err;
+            }
+        }
+
+        startScanner();
         </script>
         """,
-        height=420
+        height=300
     )
