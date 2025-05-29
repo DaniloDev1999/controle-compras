@@ -5,7 +5,7 @@ from db import (
     criar_tabela, inserir_produto, listar_produtos,
     listar_meses, listar_por_mes, limpar_mes, resumo_mensal, excluir_produto
 )
-from utils import calcular_totais, exportar_csv,exportar_excel
+from utils import calcular_totais, exportar_csv, exportar_excel
 from barcode_api import buscar_produto_por_codigo
 from barcode_upload import cadastrar_produto_off
 from datetime import date
@@ -15,25 +15,32 @@ from barcode_web import escanear_codigo_web
 st.set_page_config(page_title="Controle de Compras", layout="centered")
 st.title("🛒 Controle de Compras por Código de Barras")
 
-# Captura o código de barras da URL e define no session_state
+# Se veio ?barcode=... na URL, joga direto em session_state["codigo"]
 query_params = st.query_params
 if "barcode" in query_params:
-    st.session_state["codigo"] = query_params["barcode"][0]  # Pega o primeiro valor da lista
+    st.session_state["codigo"] = query_params["barcode"][0]
 
 criar_tabela()
 
-
+# Crédito disponível
 credito_inicial = st.number_input("💰 Crédito disponível", min_value=0.0, value=200.0)
 
+# Seleção de mês
 meses = listar_meses()
-mes_escolhido = st.selectbox("📆 Escolha o mês", options=meses if meses else ["Nenhum dado"], index=0)
+mes_escolhido = st.selectbox(
+    "📆 Escolha o mês",
+    options=meses if meses else ["Nenhum dado"],
+    index=0
+)
 
+# Inicializa chaves de estado
 for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
     if campo not in st.session_state:
         st.session_state[campo] = ""
 
 with st.form("formulario"):
-    codigo_input = st.text_input("📦 Código de barras", value=st.session_state["codigo"])
+    # Text input agora usa key, sem passar 'value='
+    codigo_input = st.text_input("📦 Código de barras", key="codigo")
     
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     with col1:
@@ -45,21 +52,19 @@ with st.form("formulario"):
     with col4:
         abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
-    # Ler código pela câmera
+    # Se clicar em ler pela câmera, abre o componente JS
     if abrir_camera:
         escanear_codigo_web()
 
-       # Buscar produto na API externa (preserva código vindo da câmera)
+    # Buscar produto na API externa—lê sempre de st.session_state["codigo"]
     if buscar:
-        # se o usuario editou o campo, usa codigo_input,
-        # senão, mantém o que já está em session_state["codigo"]
-        code = codigo_input.strip() or st.session_state.get("codigo", "").strip()
-        st.session_state["codigo"] = code
-
-        if code:
+        code = st.session_state["codigo"].strip()
+        if not code:
+            st.warning("Por favor, informe um código de barras para buscar.")
+        else:
             info = buscar_produto_por_codigo(code)
             if info:
-                # preenche todos os campos de uma vez
+                # Preenche todos os campos de uma vez
                 st.session_state["nome"]       = info.get("nome", "")
                 st.session_state["marca"]      = info.get("marca", "")
                 st.session_state["fabricante"] = info.get("fabricante", "")
@@ -67,9 +72,8 @@ with st.form("formulario"):
                 st.success("Produto preenchido com sucesso!")
             else:
                 st.warning("Produto não encontrado na base externa.")
-        else:
-            st.warning("Por favor, informe um código de barras para buscar.")
-    # Campos de entrada manual (podem ser preenchidos ou editados)
+
+    # Campos de entrada manual (podem ser editados)
     nome = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
     marca = st.text_input("🏷️ Marca", value=st.session_state["marca"])
     fabricante = st.text_input("🏭 Fabricante", value=st.session_state["fabricante"])
@@ -86,14 +90,15 @@ with st.form("formulario"):
             valor_unitario, quantidade, data_hoje
         )
         st.success("Produto adicionado com sucesso!")
+        # Limpa formulário
         for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
             st.session_state[campo] = ""
         st.rerun()
 
     # Cadastrar na Open Food Facts
-    if cadastrar and codigo_input and nome:
+    if cadastrar and st.session_state["codigo"] and nome:
         sucesso, msg = cadastrar_produto_off(
-            codigo_input,
+            st.session_state["codigo"],
             nome,
             marca,
             categoria
@@ -110,9 +115,7 @@ with st.form("formulario"):
             st.session_state[campo] = ""
         st.rerun()
 
-# (o restante da aplicação continua normalmente como você já tem)
-
-
+# Exibe tabela de produtos do mês selecionado
 if mes_escolhido and mes_escolhido != "Nenhum dado":
     dados = listar_por_mes(mes_escolhido)
     st.subheader(f"🧾 Produtos de {mes_escolhido}")
@@ -137,7 +140,7 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
         linha_selecionada = []
 
     with st.expander("🛠️ Ações para produto selecionado"):
-        if isinstance(linha_selecionada, list) and len(linha_selecionada) >= 1:
+        if linha_selecionada:
             produto = linha_selecionada[0]
             st.markdown(f"""
             ✅ **Produto Selecionado:**
@@ -149,15 +152,11 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
             • **Categoria:** `{produto.get("categoria")}`  
             • **Data:** `{produto.get("data")}`  
             """)
-
-            if "id" not in produto:
-                st.error("❗ O campo 'id' não está presente.")
-            else:
+            if "id" in produto:
                 if st.button("❌ Excluir Produto Selecionado"):
-                    excluir_produto(produto.get("id"))
+                    excluir_produto(produto["id"])
                     st.warning("Produto excluído.")
                     st.rerun()
-
                 with st.form("editar_produto"):
                     novo_nome = st.text_input("✏️ Nome do produto", value=produto.get("nome"))
                     nova_marca = st.text_input("🏷️ Marca", value=produto.get("marca", ""))
@@ -165,12 +164,11 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
                     nova_categoria = st.text_input("📂 Categoria", value=produto.get("categoria", ""))
                     novo_valor = st.number_input("💵 Valor unitário", value=float(produto.get("valor_unitario")), min_value=0.0)
                     nova_qtd = st.number_input("🔢 Quantidade", value=int(produto.get("quantidade")), min_value=1)
-
                     salvar = st.form_submit_button("💾 Salvar Alterações")
                     if salvar:
                         from db import editar_produto
                         editar_produto(
-                            produto.get("id"),
+                            produto["id"],
                             novo_nome,
                             nova_marca,
                             novo_fabricante,
@@ -193,25 +191,22 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
     if valor_restante < 0:
         st.error("🚨 Você ultrapassou seu crédito disponível!")
 
-    # 👇 Aqui está fora do if, sempre visível
     col1, col2, col3 = st.columns(3)
     with col1:
         csv_bytes = exportar_csv(dados)
         st.download_button("📤 Exportar CSV", data=csv_bytes, file_name="dados_compras.csv", mime="text/csv")
-
     with col2:
         excel_bytes = exportar_excel(dados)
         st.download_button("📥 Exportar Excel", data=excel_bytes, file_name="dados_compras.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with col3:
         if st.button("🗑️ Limpar dados deste mês"):
             limpar_mes(mes_escolhido)
             st.warning("Registros apagados.")
             st.rerun()
 
+# Gráfico comparativo de meses
 st.subheader("📊 Comparativo de gastos entre meses")
 df_resumo = resumo_mensal()
-
 if df_resumo.empty:
     st.info("Nenhum dado para mostrar ainda.")
 else:
@@ -224,5 +219,4 @@ else:
         color='Tipo:N',
         column=alt.Column('Tipo:N', title=None)
     ).properties(height=300)
-
     st.altair_chart(chart, use_container_width=True)
