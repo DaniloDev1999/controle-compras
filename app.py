@@ -22,7 +22,7 @@ from barcode_web import escanear_codigo_web
 st.set_page_config(page_title="Controle de Compras", layout="centered")
 st.title("🛒 Controle de Compras por Código de Barras")
 
-# Se veio ?barcode=... na URL, joga direto em session_state["codigo"]
+# 0) Se veio ?barcode=... na URL, joga direto em session_state["codigo"]
 query_params = st.query_params
 if "barcode" in query_params:
     st.session_state["codigo"] = query_params["barcode"][0]
@@ -32,7 +32,7 @@ criar_tabela()
 # Crédito disponível
 credito_inicial = st.number_input("💰 Crédito disponível", min_value=0.0, value=200.0)
 
-# Seleção de mês
+# Escolha do mês
 meses = listar_meses()
 mes_escolhido = st.selectbox(
     "📆 Escolha o mês",
@@ -47,7 +47,7 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
 
 # == FORMULÁRIO ==============================================================
 with st.form("formulario"):
-    # agora o text_input está vinculado diretamente ao session_state
+    # agora vinculamos o text_input diretamente a st.session_state["codigo"]
     st.text_input("📦 Código de barras", key="codigo")
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
@@ -60,11 +60,11 @@ with st.form("formulario"):
     with col4:
         abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
-    # Exibe campos manuais abaixo dos botões
-    st.text_input("📝 Nome do produto", value=st.session_state["nome"], key="nome")
-    st.text_input("🏷️ Marca", value=st.session_state["marca"], key="marca")
-    st.text_input("🏭 Fabricante", value=st.session_state["fabricante"], key="fabricante")
-    st.text_input("📂 Categoria", value=st.session_state["categoria"], key="categoria")
+    # Campos de entrada manual (vinculados a session_state)
+    st.text_input("📝 Nome do produto", key="nome")
+    st.text_input("🏷️ Marca", key="marca")
+    st.text_input("🏭 Fabricante", key="fabricante")
+    st.text_input("📂 Categoria", key="categoria")
     valor_unitario = st.number_input("💵 Valor unitário", min_value=0.0, step=0.01)
     quantidade = st.number_input("🔢 Quantidade", min_value=1, step=1)
 
@@ -74,7 +74,7 @@ with st.form("formulario"):
 if abrir_camera:
     escanear_codigo_web()
 
-# 2) Buscar produto
+# 2) Buscar produto na API externa
 if buscar:
     code = st.session_state["codigo"].strip()
     if not code:
@@ -132,7 +132,7 @@ if cadastrar:
         else:
             st.error(msg)
 
-# 5) Limpar manualmente
+# 5) Limpar formulário manualmente
 if st.button("🧹 Limpar formulário"):
     for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
         st.session_state[campo] = ""
@@ -175,12 +175,12 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
                 st.warning("Produto excluído.")
                 st.experimental_rerun()
             with st.form("editar_produto"):
-                novo_nome = st.text_input("✏️ Nome", value=p["nome"])
-                nova_marca = st.text_input("🏷️ Marca", value=p.get("marca",""))
+                novo_nome       = st.text_input("✏️ Nome", value=p["nome"])
+                nova_marca      = st.text_input("🏷️ Marca", value=p.get("marca",""))
                 novo_fabricante = st.text_input("🏭 Fabricante", value=p.get("fabricante",""))
-                nova_categoria = st.text_input("📂 Categoria", value=p.get("categoria",""))
-                novo_valor = st.number_input("💵 Valor unitário", value=p["valor_unitario"], min_value=0.0)
-                nova_qtd = st.number_input("🔢 Quantidade", value=p["quantidade"], min_value=1)
+                nova_categoria  = st.text_input("📂 Categoria", value=p.get("categoria",""))
+                novo_valor      = st.number_input("💵 Valor unitário", value=p["valor_unitario"], min_value=0.0)
+                nova_qtd        = st.number_input("🔢 Quantidade", value=p["quantidade"], min_value=1)
                 salvar = st.form_submit_button("💾 Salvar Alterações")
                 if salvar:
                     db_editar_produto(
@@ -196,7 +196,7 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
                     st.experimental_rerun()
 
     total, qtd = calcular_totais(dados)
-    restante = credito_inicial - total
+    restante  = credito_inicial - total
     st.markdown(f"**Total Gasto:** R$ {total:.2f}")
     st.markdown(f"**Quantidade Total:** {qtd}")
     st.markdown(f"**Valor Restante:** R$ {restante:.2f}")
@@ -220,12 +220,16 @@ df_res = resumo_mensal()
 if df_res.empty:
     st.info("Nenhum dado para mostrar ainda.")
 else:
-    chart = alt.Chart(df_res).transform_fold(
-        ["total_gasto", "total_itens"], as_=["Tipo", "Valor"]
-    ).mark_bar().encode(
-        x=alt.X("mes:N", title="Mês"),
-        y=alt.Y("Valor:Q", title="Valor"),
-        color="Tipo:N",
-        column=alt.Column("Tipo:N", title=None)
-    ).properties(height=300)
+    chart = (
+        alt.Chart(df_res)
+           .transform_fold(["total_gasto", "total_itens"], as_=["Tipo","Valor"])
+           .mark_bar()
+           .encode(
+               x=alt.X("mes:N", title="Mês"),
+               y=alt.Y("Valor:Q", title="Valor"),
+               color="Tipo:N",
+               column=alt.Column("Tipo:N", title=None),
+           )
+           .properties(height=300)
+    )
     st.altair_chart(chart, use_container_width=True)
