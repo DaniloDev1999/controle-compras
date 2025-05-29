@@ -45,30 +45,29 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
         st.session_state[campo] = ""
 
 with st.form("formulario"):
+    # a partir de agora o input fica “controlado” por st.session_state["codigo"]
     codigo_input = st.text_input(
         "📦 Código de barras",
-        value=st.session_state["codigo"]
+        key="codigo"
     )
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     with col1:
-        buscar    = st.form_submit_button("🔍 Buscar Produto")
+        buscar      = st.form_submit_button("🔍 Buscar Produto")
     with col2:
-        adicionar = st.form_submit_button("✅ Adicionar Produto")
+        adicionar   = st.form_submit_button("✅ Adicionar Produto")
     with col3:
-        cadastrar = st.form_submit_button("🌍 Cadastrar na Open Food")
+        cadastrar   = st.form_submit_button("🌍 Cadastrar na Open Food")
     with col4:
         abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
-    # Abre o componente de leitura
+    # dispara o leitor; ele vai escrever diretamente em st.session_state["codigo"]
     if abrir_camera:
         escanear_codigo_web()
 
-    # Busca produto pela API, preservando valor vindo da câmera ou do campo
+    # busca produto usando sempre o que estiver em st.session_state["codigo"]
     if buscar:
-        code = codigo_input.strip() or st.session_state["codigo"].strip()
-        st.session_state["codigo"] = code
-
+        code = st.session_state["codigo"].strip()
         if code:
             info = buscar_produto_por_codigo(code)
             if info:
@@ -82,45 +81,50 @@ with st.form("formulario"):
         else:
             st.warning("Por favor, informe um código de barras para buscar.")
 
-    # Campos manuais já populados pelo session_state
-    nome       = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
-    marca      = st.text_input("🏷️ Marca", value=st.session_state["marca"])
-    fabricante = st.text_input("🏭 Fabricante", value=st.session_state["fabricante"])
-    categoria  = st.text_input("📂 Categoria", value=st.session_state["categoria"])
+    # campos manuais populados pelo session_state
+    nome       = st.text_input("📝 Nome do produto",       key="nome")
+    marca      = st.text_input("🏷️ Marca",               key="marca")
+    fabricante = st.text_input("🏭 Fabricante",           key="fabricante")
+    categoria  = st.text_input("📂 Categoria",           key="categoria")
     valor_unit = st.number_input("💵 Valor unitário", min_value=0.0, step=0.01)
-    quantidade = st.number_input("🔢 Quantidade", min_value=1, step=1)
+    quantidade = st.number_input("🔢 Quantidade",     min_value=1,   step=1)
 
-    # Insere no banco local
+    # inserir no DB
     if adicionar and st.session_state["codigo"]:
         data_hoje = date.today().strftime("%Y-%m")
         inserir_produto(
             st.session_state["codigo"],
-            nome, marca, fabricante, categoria,
-            valor_unit, quantidade, data_hoje
+            st.session_state["nome"],
+            st.session_state["marca"],
+            st.session_state["fabricante"],
+            st.session_state["categoria"],
+            valor_unit,
+            quantidade,
+            data_hoje
         )
         st.success("Produto adicionado com sucesso!")
-        # Limpa apenas os campos do produto
-        for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
+        # limpa apenas os campos do produto
+        for campo in ["codigo","nome","marca","fabricante","categoria"]:
             st.session_state[campo] = ""
         st.rerun()
 
-    # Cadastra na Open Food Facts
-    if cadastrar and st.session_state["codigo"] and nome:
+    # cadastrar na Open Food Facts
+    if cadastrar and st.session_state["codigo"] and st.session_state["nome"]:
         sucesso, msg = cadastrar_produto_off(
             st.session_state["codigo"],
-            nome,
-            marca,
-            categoria
+            st.session_state["nome"],
+            st.session_state["marca"],
+            st.session_state["categoria"]
         )
         if sucesso:
             st.success(msg)
         else:
             st.error(msg)
 
-    # Limpa formulário
+    # limpar formulário
     limpar = st.form_submit_button("🧹 Limpar formulário")
     if limpar:
-        for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
+        for campo in ["codigo","nome","marca","fabricante","categoria"]:
             st.session_state[campo] = ""
         st.rerun()
 
