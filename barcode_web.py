@@ -1,7 +1,8 @@
-import streamlit as st
+# barcode_web.py
+import streamlit.components.v1 as components
 
 def escanear_codigo_web():
-    # HTML/JS do scanner dentro do srcdoc do iframe:
+    # aqui vai todo o seu srcdoc com o QuaggaJS configurado
     srcdoc = r"""
     <div id="scanner-container" style="position:relative;width:100%;max-width:500px;margin:auto;">
       <video id="video" style="width:100%;"></video>
@@ -43,6 +44,7 @@ def escanear_codigo_web():
           const code = data.codeResult.code;
           document.getElementById("output").innerText = "✅ " + code;
           Quagga.stop();
+          // dispara de volta para o Streamlit via query param
           window.location.search = "?barcode=" + code;
         });
       }
@@ -50,12 +52,15 @@ def escanear_codigo_web():
     </script>
     """
 
-    # injetamos o iframe liberando câmera e mic
-    iframe = f'''
+    # agora injetamos o iframe com srcdoc executável
+    iframe = f"""
     <iframe
       srcdoc="{srcdoc.replace('"','&quot;')}"
-      width="100%" height="600px" frameborder="0"
+      style="border:none;"
+      width="100%" height="600px"
       allow="camera; microphone; autoplay"
     ></iframe>
-    '''
-    st.markdown(iframe, unsafe_allow_html=True)
+    """
+
+    # e aqui sim renderizamos como HTML
+    components.html(iframe, height=620, scrolling=False)
