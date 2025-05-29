@@ -33,9 +33,13 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
         st.session_state[campo] = ""
 
 with st.form("formulario"):
-    codigo_input = st.text_input("📦 Código de barras", value=st.session_state["codigo"])
-    
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
+    # 👇 deixa o Streamlit manter o valor em st.session_state["codigo"]
+    codigo_input = st.text_input(
+        "📦 Código de barras",
+        key="codigo"  
+    )
+
+    col1, col2, col3, col4 = st.columns([1,1,1,1.2])
     with col1:
         buscar = st.form_submit_button("🔍 Buscar Produto")
     with col2:
@@ -45,21 +49,16 @@ with st.form("formulario"):
     with col4:
         abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
-    # Ler código pela câmera
+    # câmera só dispara o componente HTML/JS
     if abrir_camera:
         escanear_codigo_web()
 
-       # Buscar produto na API externa (preserva código vindo da câmera)
+    # buscar sempre lê de session_state["codigo"]
     if buscar:
-        # se o usuario editou o campo, usa codigo_input,
-        # senão, mantém o que já está em session_state["codigo"]
-        code = codigo_input.strip() or st.session_state.get("codigo", "").strip()
-        st.session_state["codigo"] = code
-
+        code = st.session_state.get("codigo", "").strip()
         if code:
             info = buscar_produto_por_codigo(code)
             if info:
-                # preenche todos os campos de uma vez
                 st.session_state["nome"]       = info.get("nome", "")
                 st.session_state["marca"]      = info.get("marca", "")
                 st.session_state["fabricante"] = info.get("fabricante", "")
@@ -68,7 +67,8 @@ with st.form("formulario"):
             else:
                 st.warning("Produto não encontrado na base externa.")
         else:
-            st.warning("Por favor, informe um código de barras para buscar.")
+            st.warning("Por favor, informe (ou escaneie) um código de barras.")
+            
     # Campos de entrada manual (podem ser preenchidos ou editados)
     nome = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
     marca = st.text_input("🏷️ Marca", value=st.session_state["marca"])
