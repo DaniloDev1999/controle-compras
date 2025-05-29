@@ -19,207 +19,234 @@ from datetime import date
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 from barcode_web import escanear_codigo_web
 
+# ------------------------------------------------------------
+# Configurações iniciais
+# ------------------------------------------------------------
 st.set_page_config(page_title="Controle de Compras", layout="centered")
 st.title("🛒 Controle de Compras por Código de Barras")
 
-# 1) Captura parâmetro da URL (window.location.search) para persistir entre reruns
-query_params = st.query_params
-if "barcode" in query_params:
-    st.session_state["codigo"] = query_params["barcode"][0]
+# Se veio ?barcode=... na URL, guarda no session_state["codigo"]
+params = st.query_params
+if "barcode" in params and params["barcode"]:
+    st.session_state["codigo"] = params["barcode"][0]
 
-# 2) Garante existência das chaves no session_state
-for key in ["codigo", "nome", "marca", "fabricante", "categoria"]:
-    if key not in st.session_state:
-        st.session_state[key] = ""
-
-# 3) Cria tabela no banco local
+# Cria tabela no banco (se ainda não existir)
 criar_tabela()
 
-# ---- Formulário principal ----
+# ------------------------------------------------------------
+# Cabeçalho: crédito e seleção de mês
+# ------------------------------------------------------------
+credito_inicial = st.number_input(
+    "💰 Crédito disponível", min_value=0.0, value=200.0
+)
+
+meses = listar_meses()
+mes_escolhido = st.selectbox(
+    "📆 Escolha o mês",
+    options=meses if meses else ["Nenhum dado"],
+    index=0
+)
+
+# ------------------------------------------------------------
+# Inicialização de session_state para os campos do formulário
+# ------------------------------------------------------------
+for campo in ["codigo", "nome", "marca", "fabricante", "categoria",
+              "valor_unitario", "quantidade"]:
+    if campo not in st.session_state:
+        st.session_state[campo] = ""  # string ou zero depois convertido pelo widget
+
+# ------------------------------------------------------------
+# Formulário de inserção / busca / cadastro / leitura de câmera
+# ------------------------------------------------------------
 with st.form("formulario"):
-    # text_input “controlado”: tudo que o usuário digitar ou o scanner inserir
-    codigo_input = st.text_input(
-        "📦 Código de barras",
-        key="codigo"
-    )
+    # ⚙️ Text Input vinculado ao session_state["codigo"]
+    st.text_input("📦 Código de barras", key="codigo")
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     with col1:
-        buscar      = st.form_submit_button("🔍 Buscar Produto")
+        buscar = st.form_submit_button("🔍 Buscar Produto")
     with col2:
-        adicionar   = st.form_submit_button("✅ Adicionar Produto")
+        adicionar = st.form_submit_button("✅ Adicionar Produto")
     with col3:
-        cadastrar   = st.form_submit_button("🌍 Cadastrar na Open Food")
+        cadastrar = st.form_submit_button("🌍 Cadastrar na Open Food")
     with col4:
         abrir_camera = st.form_submit_button("📷 Ler Código de Barras")
 
-    # 3.1) Se clicar em “Ler Código de Barras”, abre o componente JS
+    # 📷 Abre o componente JS para leitura via câmera
     if abrir_camera:
         escanear_codigo_web()
+        st.experimental_rerun()  # força novo run para pegar o ?barcode
 
-    # 3.2) Busca na API externa usando sempre o valor atual de session_state["codigo"]
+    # 🔍 Buscar produto na API externa
     if buscar:
         code = st.session_state["codigo"].strip()
         if code:
             info = buscar_produto_por_codigo(code)
             if info:
-                st.session_state["nome"]       = info.get("nome", "")
-                st.session_state["marca"]      = info.get("marca", "")
-                st.session_state["fabricante"] = info.get("fabricante", "")
-                st.session_state["categoria"]  = info.get("categoria", "")
+                st.session_state.update({
+                    "nome": info.get("nome", ""),
+                    "marca": info.get("marca", ""),
+                    "fabricante": info.get("fabricante", ""),
+                    "categoria": info.get("categoria", "")
+                })
                 st.success("✅ Produto preenchido com sucesso!")
             else:
                 st.warning("❌ Produto não encontrado na base externa.")
         else:
-            st.warning("⚠️ Por favor, informe um código de barras para buscar.")
+            st.warning("⚠️ Informe um código de barras para buscar.")
 
-    # 3.3) Campos manuais, também “controlados” por session_state
-    nome       = st.text_input("📝 Nome do produto",       key="nome")
-    marca      = st.text_input("🏷️ Marca",               key="marca")
-    fabricante = st.text_input("🏭 Fabricante",           key="fabricante")
-    categoria  = st.text_input("📂 Categoria",           key="categoria")
-    valor_unit = st.number_input("💵 Valor unitário",     min_value=0.0, step=0.01)
-    quantidade = st.number_input("🔢 Quantidade",         min_value=1,   step=1)
+    # 📝 Campos manuais
+    st.text_input("📝 Nome do produto", key="nome")
+    st.text_input("🏷️ Marca", key="marca")
+    st.text_input("🏭 Fabricante", key="fabricante")
+    st.text_input("📂 Categoria", key="categoria")
+    st.number_input(
+        "💵 Valor unitário",
+        min_value=0.0, step=0.01,
+        key="valor_unitario"
+    )
+    st.number_input(
+        "🔢 Quantidade",
+        min_value=1, step=1,
+        key="quantidade"
+    )
 
-    # 3.4) Inserir no banco local
-    if adicionar and st.session_state["codigo"]:
-        data_hoje = date.today().strftime("%Y-%m")
-        inserir_produto(
-            st.session_state["codigo"],
-            st.session_state["nome"],
-            st.session_state["marca"],
-            st.session_state["fabricante"],
-            st.session_state["categoria"],
-            valor_unit,
-            quantidade,
-            data_hoje
-        )
-        st.success("✅ Produto adicionado com sucesso!")
-        # Limpa apenas os campos de produto, mantendo o restante da sessão
-        for k in ["codigo","nome","marca","fabricante","categoria"]:
-            st.session_state[k] = ""
-        st.rerun()
-
-    # 3.5) Cadastrar na Open Food Facts
-    if cadastrar and st.session_state["codigo"] and st.session_state["nome"]:
-        sucesso, msg = cadastrar_produto_off(
-            st.session_state["codigo"],
-            st.session_state["nome"],
-            st.session_state["marca"],
-            st.session_state["categoria"]
-        )
-        if sucesso:
-            st.success(msg)
+    # ✅ Adicionar no banco local
+    if adicionar:
+        code = st.session_state["codigo"].strip()
+        name = st.session_state["nome"].strip()
+        if not code or not name:
+            st.warning("⚠️ Código e Nome do produto são obrigatórios.")
         else:
-            st.error(msg)
+            inserir_produto(
+                code,
+                st.session_state["nome"],
+                st.session_state["marca"],
+                st.session_state["fabricante"],
+                st.session_state["categoria"],
+                st.session_state["valor_unitario"],
+                st.session_state["quantidade"],
+                date.today().strftime("%Y-%m")
+            )
+            st.success("✅ Produto adicionado com sucesso!")
+            # limpa campos
+            for key in ["codigo","nome","marca","fabricante",
+                        "categoria","valor_unitario","quantidade"]:
+                st.session_state[key] = ""
+            st.experimental_rerun()
 
-    # 3.6) Limpar formulário manual
+    # 🌍 Cadastrar na Open Food Facts
+    if cadastrar:
+        code = st.session_state["codigo"].strip()
+        name = st.session_state["nome"].strip()
+        if code and name:
+            sucesso, msg = cadastrar_produto_off(
+                code,
+                name,
+                st.session_state["marca"],
+                st.session_state["categoria"]
+            )
+            if sucesso:
+                st.success("✅ " + msg)
+            else:
+                st.error("❌ " + msg)
+        else:
+            st.warning("⚠️ Para cadastrar, informe código e nome.")
+
+    # 🧹 Limpar formulário
     limpar = st.form_submit_button("🧹 Limpar formulário")
     if limpar:
-        for k in ["codigo","nome","marca","fabricante","categoria"]:
-            st.session_state[k] = ""
-        st.rerun()
+        for key in ["codigo","nome","marca","fabricante",
+                    "categoria","valor_unitario","quantidade"]:
+            st.session_state[key] = ""
+        st.experimental_rerun()
 
-# ---- Fim do formulário ----
-
-# 4) Exibição de dados por mês
-credito_inicial = st.session_state.get("credito_inicial", 200.0)
-credito_inicial = st.number_input("💰 Crédito disponível", min_value=0.0, value=credito_inicial, key="credito_inicial")
-
-meses = listar_meses()
-mes_escolhido = st.selectbox("📆 Escolha o mês", options=meses if meses else ["Nenhum dado"], index=0)
-
-if mes_escolhido != "Nenhum dado":
-    df_mes = listar_por_mes(mes_escolhido)
+# ------------------------------------------------------------
+# Seção de exibição, exclusão e edição de produtos
+# ------------------------------------------------------------
+if mes_escolhido and mes_escolhido != "Nenhum dado":
+    dados = listar_por_mes(mes_escolhido)
     st.subheader(f"🧾 Produtos de {mes_escolhido}")
 
-    gb = GridOptionsBuilder.from_dataframe(df_mes)
-    gb.configure_selection("single", use_checkbox=True)  # ou "multiple" se quiser multiseleção
+    gb = GridOptionsBuilder.from_dataframe(dados)
+    gb.configure_selection("multiple", use_checkbox=True)
     grid_options = gb.build()
 
-    grid_resp = AgGrid(
-        df_mes,
+    grid_response = AgGrid(
+        dados,
         gridOptions=grid_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         data_return_mode=DataReturnMode.AS_INPUT,
+        fit_columns_on_grid_load=True,
         height=300,
     )
-    sel = grid_resp["selected_rows"]
-    if sel:
-        prod = sel[0]
-        st.markdown(f"""
-        **Produto Selecionado**  
-        • Nome: `{prod.get("nome")}`  
-        • Código: `{prod.get("codigo")}`  
-        • Valor unitário: R$ {float(prod.get("valor_unitario")):.2f}  
-        • Quantidade: {int(prod.get("quantidade"))}  
-        • Categoria: `{prod.get("categoria")}`  
-        • Data: `{prod.get("data")}`
-        """)
-        # Edição inline
-        with st.form("editar_produto"):
-            novo_nome       = st.text_input("✏️ Nome",       value=prod.get("nome",""))
-            nova_marca      = st.text_input("🏷️ Marca",     value=prod.get("marca",""))
-            novo_fabricante = st.text_input("🏭 Fabricante", value=prod.get("fabricante",""))
-            nova_categoria  = st.text_input("📂 Categoria", value=prod.get("categoria",""))
-            novo_valor      = st.number_input("💵 Valor unitário", value=float(prod.get("valor_unitario") or 0.0), min_value=0.0)
-            nova_qtd        = st.number_input("🔢 Quantidade", value=int(prod.get("quantidade") or 1), min_value=1)
-            salvar = st.form_submit_button("💾 Salvar alterações")
 
-            if salvar:
+    selecionados = grid_response.get("selected_rows", [])
+    # exclui linhas com _selected_: eles vêm duplicados
+    selecionados = [row for row in selecionados if row.get("_selectedRow")]
+
+    # 🚮 Excluir vários produtos
+    if selecionados:
+        if st.button(f"❌ Excluir {len(selecionados)} produto(s)"):
+            for row in selecionados:
+                excluir_produto(row["id"])
+            st.success("Produtos excluídos.")
+            st.experimental_rerun()
+
+    # ✏️ Editar um único produto
+    if len(selecionados) == 1:
+        prod = selecionados[0]
+        with st.expander("✏️ Editar produto selecionado"):
+            novo_nome = st.text_input("Nome", value=prod["nome"], key="edit_nome")
+            nova_marca = st.text_input("Marca", value=prod["marca"], key="edit_marca")
+            novo_fab   = st.text_input("Fabricante", value=prod["fabricante"], key="edit_fab")
+            nova_cat   = st.text_input("Categoria", value=prod["categoria"], key="edit_cat")
+            novo_val   = st.number_input("Valor unitário", value=float(prod["valor_unitario"]), min_value=0.0, key="edit_val")
+            nova_qtd   = st.number_input("Quantidade", value=int(prod["quantidade"]), min_value=1, key="edit_qtd")
+            if st.button("💾 Salvar alterações"):
                 editar_produto(
-                    prod.get("id"),
-                    novo_nome,
-                    nova_marca,
-                    novo_fabricante,
-                    nova_categoria,
-                    novo_valor,
-                    nova_qtd
+                    prod["id"],
+                    novo_nome, nova_marca, novo_fab, nova_cat,
+                    novo_val, nova_qtd
                 )
-                st.success("✅ Produto atualizado!")
-                st.rerun()
+                st.success("Produto atualizado.")
+                st.experimental_rerun()
 
-        if st.button("❌ Excluir produto selecionado"):
-            excluir_produto(prod.get("id"))
-            st.warning("🗑️ Produto excluído.")
-            st.rerun()
-
-    # Totais e exportações
-    total, qtd = calcular_totais(df_mes)
-    restante = st.session_state["credito_inicial"] - total
-    st.markdown(f"**Total gasto:** R$ {total:.2f} • **Itens:** {qtd} • **Restante:** R$ {restante:.2f}")
+    # Totais e botões de exportar/limpar
+    total, qtd = calcular_totais(dados)
+    restante = credito_inicial - total
+    st.markdown(f"**Total gasto:** R$ {total:.2f}  |  **Itens:** {qtd}  |  **Restante:** R$ {restante:.2f}")
     if restante < 0:
-        st.error("🚨 Você ultrapassou seu limite!")
+        st.error("🚨 Você ultrapassou seu crédito!")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        csvb = exportar_csv(df_mes)
-        st.download_button("📤 Exportar CSV", data=csvb, file_name="compras.csv", mime="text/csv")
-    with c2:
-        xlsb = exportar_excel(df_mes)
-        st.download_button("📥 Exportar Excel", data=xlsb, file_name="compras.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    with c3:
-        if st.button("🗑️ Limpar dados deste mês"):
+    cols = st.columns(3)
+    with cols[0]:
+        csv_bytes = exportar_csv(dados)
+        st.download_button("📤 Exportar CSV", data=csv_bytes, file_name="compras.csv")
+    with cols[1]:
+        xlsx_bytes = exportar_excel(dados)
+        st.download_button("📥 Exportar Excel", data=xlsx_bytes, file_name="compras.xlsx")
+    with cols[2]:
+        if st.button("🗑️ Limpar este mês"):
             limpar_mes(mes_escolhido)
-            st.warning("📆 Dados removidos.")
-            st.rerun()
+            st.warning("Registros apagados.")
+            st.experimental_rerun()
 
-# 5) Gráfico comparativo
-st.subheader("📊 Comparativo de gastos entre meses")
+# ------------------------------------------------------------
+# Gráfico comparativo
+# ------------------------------------------------------------
+st.subheader("📊 Comparativo de gastos por mês")
 df_res = resumo_mensal()
 if df_res.empty:
-    st.info("Nenhum dado para mostrar ainda.")
+    st.info("Nenhum dado para mostrar.")
 else:
-    chart = (
-        alt.Chart(df_res)
-           .transform_fold(['total_gasto','total_itens'], as_=['Tipo','Valor'])
-           .mark_bar()
-           .encode(
-               x=alt.X('mes:N', title='Mês'),
-               y=alt.Y('Valor:Q', title='Valor'),
-               color='Tipo:N',
-               column=alt.Column('Tipo:N', title=None),
-           )
-           .properties(height=300)
-    )
+    chart = alt.Chart(df_res).transform_fold(
+        ["total_gasto","total_itens"],
+        as_=["Tipo","Valor"]
+    ).mark_bar().encode(
+        x="mes:N",
+        y="Valor:Q",
+        color="Tipo:N",
+        column=alt.Column("Tipo:N", title=None)
+    ).properties(height=300)
     st.altair_chart(chart, use_container_width=True)
