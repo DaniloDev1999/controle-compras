@@ -49,22 +49,26 @@ with st.form("formulario"):
     if abrir_camera:
         escanear_codigo_web()
 
-    # Buscar produto na API externa
-    if buscar and codigo_input:
-        st.session_state["codigo"] = codigo_input
-        info = buscar_produto_por_codigo(codigo_input)
-        if info:
-            if info["nome"]:
-                st.session_state["nome"] = info["nome"]
-            if info["marca"]:
-                st.session_state["marca"] = info["marca"]
-            if info["fabricante"]:
-                st.session_state["fabricante"] = info["fabricante"]
-            if info["categoria"]:
-                st.session_state["categoria"] = info["categoria"]
-            st.success("Produto preenchido com sucesso!")
+       # Buscar produto na API externa (preserva código vindo da câmera)
+    if buscar:
+        # se o usuario editou o campo, usa codigo_input,
+        # senão, mantém o que já está em session_state["codigo"]
+        code = codigo_input.strip() or st.session_state.get("codigo", "").strip()
+        st.session_state["codigo"] = code
+
+        if code:
+            info = buscar_produto_por_codigo(code)
+            if info:
+                # preenche todos os campos de uma vez
+                st.session_state["nome"]       = info.get("nome", "")
+                st.session_state["marca"]      = info.get("marca", "")
+                st.session_state["fabricante"] = info.get("fabricante", "")
+                st.session_state["categoria"]  = info.get("categoria", "")
+                st.success("Produto preenchido com sucesso!")
+            else:
+                st.warning("Produto não encontrado na base externa.")
         else:
-            st.warning("Produto não encontrado na base externa.")
+            st.warning("Por favor, informe um código de barras para buscar.")
     # Campos de entrada manual (podem ser preenchidos ou editados)
     nome = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
     marca = st.text_input("🏷️ Marca", value=st.session_state["marca"])
