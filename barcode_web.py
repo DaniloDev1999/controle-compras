@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 def escanear_codigo_web():
     components.html("""
     <video id="video" style="width:100%; height:auto;" autoplay muted></video>
-    <p id="output" style="text-align:center;font-weight:bold;">🔍 Aguardando leitura...</p>
+    <p id="output" style="text-align:center; font-weight:bold;">🔍 Aguardando leitura...</p>
     <script>
       async function startScanner() {
         const video = document.getElementById('video');
@@ -19,7 +19,6 @@ def escanear_codigo_web():
           formats: ['ean_13','ean_8','code_128','upc_a','upc_e']
         });
 
-        // Aumenta resolução para 1280×720 (ou até 1920×1080)
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -35,22 +34,30 @@ def escanear_codigo_web():
           return;
         }
 
-        // Loop de escaneamento
         const scanLoop = async () => {
           try {
-            const códigos = await detector.detect(video);
-            if (códigos.length > 0) {
-              const code = códigos[0].rawValue;
+            const codes = await detector.detect(video);
+            if (codes.length > 0) {
+              const code = codes[0].rawValue;
               output.innerText = "✅ Código detectado: " + code;
-              // Preenche o primeiro input de texto na página Streamlit
-              const parent = window.parent.document;
-              const inputs = parent.querySelectorAll("input[type='text']");
+
+              // Copiar para o clipboard (se permitido)
+              if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).catch(e => {
+                  console.warn("Falha ao copiar para clipboard:", e);
+                });
+              }
+
+              // Preencher o primeiro campo de texto do Streamlit
+              const parentDoc = window.parent.document;
+              const inputs = parentDoc.querySelectorAll("input[type='text']");
               if (inputs.length > 0) {
                 inputs[0].value = code;
                 inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
               }
-              // Para o stream
-              stream.getTracks().forEach(t => t.stop());
+
+              // Para o stream de vídeo
+              stream.getTracks().forEach(track => track.stop());
               return;
             }
           } catch(e) {
