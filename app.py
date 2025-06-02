@@ -47,8 +47,7 @@ for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
 with st.form("formulario"):
     codigo_input = st.text_input(
         "📦 Código de barras",
-        value=st.session_state["codigo"],
-        key="codigo_input"
+        value=st.session_state["codigo"]
     )
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
@@ -67,7 +66,7 @@ with st.form("formulario"):
 
     # Busca produto pela API, preservando valor vindo da câmera ou do campo
     if buscar:
-        code = codigo_input.strip() or st.session_state.get("codigo", "").strip()
+        code = codigo_input.strip() or st.session_state["codigo"].strip()
         st.session_state["codigo"] = code
 
         if code:
@@ -84,42 +83,12 @@ with st.form("formulario"):
             st.warning("Por favor, informe um código de barras para buscar.")
 
     # Campos manuais já populados pelo session_state
-    nome = st.text_input(
-        "📝 Nome do produto",
-        value=st.session_state["nome"],
-        key="nome"
-    )
-    marca = st.text_input(
-        "🏷️ Marca",
-        value=st.session_state["marca"],
-        key="marca"
-    )
-    fabricante = st.text_input(
-        "🏭 Fabricante",
-        value=st.session_state["fabricante"],
-        key="fabricante"
-    )
-    categoria = st.text_input(
-        "📂 Categoria",
-        value=st.session_state["categoria"],
-        key="categoria"
-    )
-
-    # *** AQUI VEM A CORREÇÃO ***
-    valor_unit = st.number_input(
-        "💵 Valor unitário",
-        min_value=0.0,
-        step=0.01,
-        value=0.0,
-        key="valor_unitario"
-    )
-    quantidade = st.number_input(
-        "🔢 Quantidade",
-        min_value=1,
-        step=1,
-        value=1,
-        key="quantidade"
-    )
+    nome       = st.text_input("📝 Nome do produto", value=st.session_state["nome"])
+    marca      = st.text_input("🏷️ Marca", value=st.session_state["marca"])
+    fabricante = st.text_input("🏭 Fabricante", value=st.session_state["fabricante"])
+    categoria  = st.text_input("📂 Categoria", value=st.session_state["categoria"])
+    valor_unit = st.number_input("💵 Valor unitário", min_value=0.0, step=0.01)
+    quantidade = st.number_input("🔢 Quantidade", min_value=1, step=1)
 
     # Insere no banco local
     if adicionar and st.session_state["codigo"]:
@@ -133,9 +102,6 @@ with st.form("formulario"):
         # Limpa apenas os campos do produto
         for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
             st.session_state[campo] = ""
-        # Limpa também os valores numéricos
-        st.session_state["valor_unitario"] = 0.0
-        st.session_state["quantidade"] = 1
         st.rerun()
 
     # Cadastra na Open Food Facts
@@ -156,8 +122,6 @@ with st.form("formulario"):
     if limpar:
         for campo in ["codigo", "nome", "marca", "fabricante", "categoria"]:
             st.session_state[campo] = ""
-        st.session_state["valor_unitario"] = 0.0
-        st.session_state["quantidade"] = 1
         st.rerun()
 
 # Exibe tabela de compras do mês selecionado
@@ -211,18 +175,16 @@ if mes_escolhido and mes_escolhido != "Nenhum dado":
                 nova_marca      = st.text_input("🏷️ Marca", value=produto["marca"])
                 novo_fabricante = st.text_input("🏭 Fabricante", value=produto["fabricante"])
                 nova_categoria  = st.text_input("📂 Categoria", value=produto["categoria"])
-                # Edição também com value e key para evitar conflitos
+                # força float(...) para evitar MixedNumericTypesError
                 novo_valor      = st.number_input(
                     "💵 Valor unitário",
                     min_value=0.0,
-                    value=float(produto["valor_unitario"]),
-                    key="editar_valor_unitario"
+                    value=float(produto["valor_unitario"])
                 )
                 nova_qtd        = st.number_input(
                     "🔢 Quantidade",
                     min_value=1,
-                    value=int(produto["quantidade"]),
-                    key="editar_quantidade"
+                    value=int(produto["quantidade"])
                 )
                 salvar = st.form_submit_button("💾 Salvar Alterações")
                 if salvar:
