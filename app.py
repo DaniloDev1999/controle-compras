@@ -22,6 +22,20 @@ st.title("🛒 Controle de Compras por Código de Barras")
 qs = st.query_params
 if "barcode" in qs and qs["barcode"]:
     st.session_state["codigo"] = qs["barcode"][0]
+    # Chamamos a busca imediatamente após capturar o código
+    info = buscar_produto_por_codigo(st.session_state["codigo"])
+    if info:
+        if info["nome"]:
+            st.session_state["nome"] = info["nome"]
+        if info["marca"]:
+            st.session_state["marca"] = info["marca"]
+        if info["fabricante"]:
+            st.session_state["fabricante"] = info["fabricante"]
+        if info["categoria"]:
+            st.session_state["categoria"] = info["categoria"]
+        st.success("✅ Produto preenchido automaticamente após leitura!")
+    else:
+        st.warning("❌ Código lido, mas produto não encontrado na base externa.")
 
 criar_tabela()
 
